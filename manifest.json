@@ -1,0 +1,9 @@
+{
+  "name": "Классные сборы",
+  "short_name": "Сборы",
+  "description": "Учёт классных сборов по ученикам",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#2563eb",
+  "theme_color": "#2563eb"
+}
