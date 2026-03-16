@@ -451,6 +451,25 @@
             color: var(--accent-royal-blue);
         }
 
+        .edit-amount-input {
+            width: 100px;
+            padding: 6px 10px;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-button);
+            font-size: 0.9rem;
+            margin-right: 8px;
+        }
+
+        .save-edit-btn {
+            background: var(--accent-emerald);
+            color: white;
+            border: none;
+            border-radius: var(--radius-button);
+            padding: 6px 12px;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
         .receipt-icon {
             cursor: pointer;
             color: var(--accent-royal-blue);
@@ -984,7 +1003,6 @@
             // Исправление для iOS PWA
             if (window.navigator.standalone) {
                 console.log('Запущено как PWA на iOS');
-                // Небольшая задержка для стабилизации
                 setTimeout(function() {
                     document.body.style.opacity = '1';
                 }, 100);
@@ -1002,6 +1020,7 @@
             let editCollectionId = null;
             let editingTransaction = null;
             let sourceCollectionIdForTransfer = null;
+            let editingParticipantAmount = null; // { participantId, currentAmount }
 
             // DOM элементы
             const tabs = document.querySelectorAll('.tab');
@@ -1700,6 +1719,64 @@
 
             closeReceiptModalBtn.addEventListener('click', () => receiptModal.classList.remove('active'));
 
+            // Новая функция для редактирования суммы участника
+            function editParticipantAmount(collectionId, participantId, currentAmount) {
+                const newAmount = prompt('Введите новую сумму для участника:', currentAmount);
+                if (newAmount === null) return; // Отмена
+                
+                const amount = parseFloat(newAmount);
+                if (isNaN(amount) || amount < 0) {
+                    alert('Введите корректную сумму');
+                    return;
+                }
+
+                const collection = collections.find(c => c.id === collectionId);
+                if (!collection) return;
+
+                // Находим все платежи этого участника
+                const participantTransactions = collection.transactions.filter(t => t.participantId === participantId && t.amount > 0);
+                
+                if (participantTransactions.length === 0) {
+                    // Если платежей нет, создаём новый
+                    const newTx = {
+                        id: generateId(),
+                        participantId: participantId,
+                        amount: amount,
+                        date: new Date().toISOString().split('T')[0],
+                        comment: 'Ручная установка суммы',
+                        receipt: null
+                    };
+                    collection.transactions.push(newTx);
+                } else if (participantTransactions.length === 1) {
+                    // Если один платёж - редактируем его
+                    participantTransactions[0].amount = amount;
+                } else {
+                    // Если несколько платежей - суммируем разницу
+                    const totalPaid = getParticipantPaid(collection, participantId);
+                    const diff = amount - totalPaid;
+                    
+                    if (diff !== 0) {
+                        const newTx = {
+                            id: generateId(),
+                            participantId: participantId,
+                            amount: diff,
+                            date: new Date().toISOString().split('T')[0],
+                            comment: 'Корректировка суммы',
+                            receipt: null
+                        };
+                        collection.transactions.push(newTx);
+                    }
+                }
+
+                saveData();
+                if (collection.autoClose) applyAutoClose(collection);
+                saveData();
+                openCollectionDetail(collectionId);
+                refreshCollectionsView();
+                refreshAnalyticsSelector();
+                refreshArchiveSelector();
+            }
+
             function openCollectionDetail(collectionId) {
                 const collection = collections.find(c => c.id === collectionId);
                 if (!collection) return;
@@ -1735,11 +1812,20 @@
                         }
                         const fullPaidIcon = debt <= 0 ? '<span class="full-paid"> ✓</span>' : '';
                         participantsHtml += `
-                            <li class="transaction-item">
-                                <span>${escapeHtml(p.name)}${fullPaidIcon}</span>
-                                <span>Сдал: ${formatCurrency(paid)}</span>
-                                <span class="${debtClass}">${debtText}</span>
-                                <button class="action-btn" onclick="window.deleteParticipant('${collection.id}', '${p.id}')"><i class="fas fa-trash-alt"></i></button>
+                            <li class="transaction-item" style="flex-wrap: wrap;">
+                                <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                                    <span>${escapeHtml(p.name)}${fullPaidIcon}</span>
+                                    <span>Сдал: ${formatCurrency(paid)}</span>
+                                    <span class="${debtClass}">${debtText}</span>
+                                </div>
+                                <div style="display: flex; gap: 4px;">
+                                    <button class="action-btn" onclick="window.editParticipantAmount('${collection.id}', '${p.id}', ${paid})" title="Редактировать сумму">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="action-btn" onclick="window.deleteParticipant('${collection.id}', '${p.id}')" title="Удалить участника">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
                             </li>
                         `;
                     });
@@ -1768,8 +1854,9 @@
                     </div>
                 `;
 
-                let transactionsHtml = '<h3>Последние операции</h3><ul class="transaction-list">';
-                const sortedTx = [...collection.transactions].sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
+                // ИСПРАВЛЕНО: показываем ВСЕ операции, без ограничения
+                let transactionsHtml = '<h3>Все операции</h3><ul class="transaction-list">';
+                const sortedTx = [...collection.transactions].sort((a,b) => new Date(b.date) - new Date(a.date));
                 sortedTx.forEach(t => {
                     const participant = collection.participants.find(p => p.id === t.participantId);
                     const who = participant ? participant.name : (t.participantId === null ? 'Расход' : '???');
@@ -1777,9 +1864,12 @@
                     const receiptIcon = t.receipt ? `<span class="receipt-icon" onclick="window.viewReceipt('${t.receipt}')"><i class="fas fa-image"></i></span>` : '';
                     transactionsHtml += `
                         <li class="transaction-item">
-                            <span>${formatDate(t.date)} ${escapeHtml(who)}</span>
+                            <div style="flex: 1;">
+                                <div>${formatDate(t.date)} <strong>${escapeHtml(who)}</strong></div>
+                                <div style="font-size:0.85rem; color: var(--text-muted);">${escapeHtml(t.comment || '')}</div>
+                            </div>
                             <span class="${t.amount > 0 ? 'income' : 'expense'}">${sign}${formatCurrency(t.amount)}</span>
-                            <span>${escapeHtml(t.comment || '')} ${receiptIcon}</span>
+                            ${receiptIcon}
                             <div>
                                 <button class="action-btn" onclick="window.editTransaction('${collection.id}', '${t.id}')"><i class="fas fa-edit"></i></button>
                                 <button class="action-btn" onclick="window.deleteTransaction('${collection.id}', '${t.id}')"><i class="fas fa-trash-alt"></i></button>
@@ -2420,6 +2510,7 @@
             window.editTransaction = editTransaction;
             window.deleteTransaction = deleteTransaction;
             window.viewReceipt = viewReceipt;
+            window.editParticipantAmount = editParticipantAmount;
 
             loadData();
             refreshCollectionsView();
