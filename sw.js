@@ -1,4 +1,4 @@
-const CACHE_NAME = 'class-fund-v2';
+const CACHE_NAME = 'class-fund-v3';
 const urlsToCache = [
   './',
   './index.html',
@@ -8,6 +8,7 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
+  self.skipWaiting(); // Немедленная активация нового service worker
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
@@ -26,11 +27,28 @@ self.addEventListener('activate', event => {
       );
     })
   );
+  return self.clients.claim(); // Немедленное применение к открытым страницам
 });
 
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request)
-      .then(response => response || fetch(event.request))
+      .then(response => {
+        if (response) {
+          return response; // Возвращаем из кэша
+        }
+        return fetch(event.request).then(networkResponse => {
+          // Не кэшируем ответы с ошибками
+          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+            return networkResponse;
+          }
+          // Кэшируем новые ресурсы
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseToCache);
+          });
+          return networkResponse;
+        });
+      })
   );
 });
