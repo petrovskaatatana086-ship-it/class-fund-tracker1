@@ -1,0 +1,10 @@
+{
+  "name": "Садиковые сборы",
+  "short_name": "Садик",
+  "description": "Учёт сборов в детском саду",
+  "start_url": "/class-fund-tracker1/kindergarten/",
+  "scope": "/class-fund-tracker1/kindergarten/",
+  "display": "standalone",
+  "background_color": "#f59e0b",
+  "theme_color": "#f59e0b"
+}
