@@ -1,0 +1,10 @@
+{
+  "name": "Школьные сборы",
+  "short_name": "Школа",
+  "description": "Учёт сборов в школе",
+  "start_url": "/class-fund-tracker1/school/",
+  "scope": "/class-fund-tracker1/school/",
+  "display": "standalone",
+  "background_color": "#2563eb",
+  "theme_color": "#2563eb"
+}
