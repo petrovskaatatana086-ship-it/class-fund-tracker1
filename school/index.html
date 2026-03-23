@@ -1020,7 +1020,7 @@
             let editCollectionId = null;
             let editingTransaction = null;
             let sourceCollectionIdForTransfer = null;
-            let editingParticipantAmount = null; // { participantId, currentAmount }
+            let editingParticipantAmount = null;
 
             // DOM элементы
             const tabs = document.querySelectorAll('.tab');
@@ -1719,10 +1719,9 @@
 
             closeReceiptModalBtn.addEventListener('click', () => receiptModal.classList.remove('active'));
 
-            // Новая функция для редактирования суммы участника
             function editParticipantAmount(collectionId, participantId, currentAmount) {
                 const newAmount = prompt('Введите новую сумму для участника:', currentAmount);
-                if (newAmount === null) return; // Отмена
+                if (newAmount === null) return;
                 
                 const amount = parseFloat(newAmount);
                 if (isNaN(amount) || amount < 0) {
@@ -1733,11 +1732,9 @@
                 const collection = collections.find(c => c.id === collectionId);
                 if (!collection) return;
 
-                // Находим все платежи этого участника
                 const participantTransactions = collection.transactions.filter(t => t.participantId === participantId && t.amount > 0);
                 
                 if (participantTransactions.length === 0) {
-                    // Если платежей нет, создаём новый
                     const newTx = {
                         id: generateId(),
                         participantId: participantId,
@@ -1748,10 +1745,8 @@
                     };
                     collection.transactions.push(newTx);
                 } else if (participantTransactions.length === 1) {
-                    // Если один платёж - редактируем его
                     participantTransactions[0].amount = amount;
                 } else {
-                    // Если несколько платежей - суммируем разницу
                     const totalPaid = getParticipantPaid(collection, participantId);
                     const diff = amount - totalPaid;
                     
@@ -1854,7 +1849,6 @@
                     </div>
                 `;
 
-                // ИСПРАВЛЕНО: показываем ВСЕ операции, без ограничения
                 let transactionsHtml = '<h3>Все операции</h3><ul class="transaction-list">';
                 const sortedTx = [...collection.transactions].sort((a,b) => new Date(b.date) - new Date(a.date));
                 sortedTx.forEach(t => {
@@ -2152,7 +2146,7 @@
                         <td>
                             <button class="action-btn" onclick="window.editTransaction('${collection.id}', '${t.id}')"><i class="fas fa-edit"></i></button>
                             <button class="action-btn" onclick="window.deleteTransaction('${collection.id}', '${t.id}')"><i class="fas fa-trash-alt"></i></button>
-                        </td>
+                         </td>
                     </tr>`;
                 });
                 transactionsBody.innerHTML = rows;
@@ -2198,6 +2192,7 @@
                 URL.revokeObjectURL(link.href);
             });
 
+            // ИСПРАВЛЕННАЯ ФУНКЦИЯ: экспортирует только должников (у кого долг > 0)
             exportDebtorsBtn.addEventListener('click', () => {
                 if (!selectedCollectionId) {
                     alert('Сначала выберите сбор');
@@ -2210,17 +2205,28 @@
                     return;
                 }
 
-                let csv = '\uFEFFИмя;Долг/Переплата;Сдано;Сумма с человека\n';
+                let csv = '\uFEFFИмя;Сумма с человека (₽);Сдано (₽);Долг (₽);Статус\n';
+                let hasDebtors = false;
+                
                 collection.participants.forEach(p => {
                     const paid = getParticipantPaid(collection, p.id);
                     const debt = collection.perPerson - paid;
-                    csv += `${p.name};${debt};${paid};${collection.perPerson}\n`;
+                    // ВЫГРУЖАЕМ ТОЛЬКО ТЕХ, У КОГО ДОЛГ ПОЛОЖИТЕЛЬНЫЙ (debt > 0)
+                    if (debt > 0) {
+                        hasDebtors = true;
+                        csv += `${p.name};${collection.perPerson};${paid};${debt};Должник\n`;
+                    }
                 });
+
+                if (!hasDebtors) {
+                    alert('Нет должников! Все участники сдали полностью.');
+                    return;
+                }
 
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
-                link.download = `${collection.name}_debtors.csv`;
+                link.download = `${collection.name}_только_должники.csv`;
                 link.click();
                 URL.revokeObjectURL(link.href);
             });
@@ -2368,6 +2374,7 @@
                 URL.revokeObjectURL(link.href);
             });
 
+            // Исправленная функция для архива: экспортирует только должников
             archiveExportDebtorsBtn.addEventListener('click', () => {
                 if (!selectedArchiveId) {
                     alert('Сначала выберите сбор');
@@ -2380,17 +2387,28 @@
                     return;
                 }
 
-                let csv = '\uFEFFИмя;Долг/Переплата;Сдано;Сумма с человека\n';
+                let csv = '\uFEFFИмя;Сумма с человека (₽);Сдано (₽);Долг (₽);Статус\n';
+                let hasDebtors = false;
+                
                 collection.participants.forEach(p => {
                     const paid = getParticipantPaid(collection, p.id);
                     const debt = collection.perPerson - paid;
-                    csv += `${p.name};${debt};${paid};${collection.perPerson}\n`;
+                    // ТОЛЬКО ДОЛЖНИКИ (debt > 0)
+                    if (debt > 0) {
+                        hasDebtors = true;
+                        csv += `${p.name};${collection.perPerson};${paid};${debt};Должник\n`;
+                    }
                 });
+
+                if (!hasDebtors) {
+                    alert('Нет должников! Все участники сдали полностью.');
+                    return;
+                }
 
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
-                link.download = `${collection.name}_debtors.csv`;
+                link.download = `${collection.name}_только_должники.csv`;
                 link.click();
                 URL.revokeObjectURL(link.href);
             });
