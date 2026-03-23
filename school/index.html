@@ -8,8 +8,8 @@
     <!-- БАЗОВЫЙ ТЕГ - критически важно для iOS PWA -->
     <base href="/class-fund-tracker1/school/">
     
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
+    <!-- PWA Manifest - абсолютный путь -->
+    <link rel="manifest" href="/class-fund-tracker1/school/manifest.json">
     
     <!-- Иконки для iOS (встроенные SVG) -->
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' fill='%232563eb'/%3E%3Ctext x='90' y='115' font-family='Arial' font-size='115' fill='white' text-anchor='middle'%3E🏫%3C/text%3E%3C/svg%3E">
@@ -803,7 +803,7 @@
                             <th>Долг</th>
                             <th>Чек</th>
                             <th>Действия</th>
-                        </tr>
+                         </tr>
                     </thead>
                     <tbody id="transactionsBody"></tbody>
                 </table>
@@ -857,7 +857,7 @@
                             <th>Комментарий</th>
                             <th>Долг</th>
                             <th>Чек</th>
-                        </tr>
+                         </tr>
                     </thead>
                     <tbody id="archiveTransactionsBody"></tbody>
                 </table>
@@ -2147,7 +2147,7 @@
                             <button class="action-btn" onclick="window.editTransaction('${collection.id}', '${t.id}')"><i class="fas fa-edit"></i></button>
                             <button class="action-btn" onclick="window.deleteTransaction('${collection.id}', '${t.id}')"><i class="fas fa-trash-alt"></i></button>
                          </td>
-                    </tr>`;
+                     </tr>`;
                 });
                 transactionsBody.innerHTML = rows;
 
@@ -2192,7 +2192,7 @@
                 URL.revokeObjectURL(link.href);
             });
 
-            // ИСПРАВЛЕННАЯ ФУНКЦИЯ: экспортирует только должников (у кого долг > 0)
+            // ИСПРАВЛЕНА: экспортирует только должников (долг > 0)
             exportDebtorsBtn.addEventListener('click', () => {
                 if (!selectedCollectionId) {
                     alert('Сначала выберите сбор');
@@ -2211,7 +2211,7 @@
                 collection.participants.forEach(p => {
                     const paid = getParticipantPaid(collection, p.id);
                     const debt = collection.perPerson - paid;
-                    // ВЫГРУЖАЕМ ТОЛЬКО ТЕХ, У КОГО ДОЛГ ПОЛОЖИТЕЛЬНЫЙ (debt > 0)
+                    // ТОЛЬКО ДОЛЖНИКИ (debt > 0)
                     if (debt > 0) {
                         hasDebtors = true;
                         csv += `${p.name};${collection.perPerson};${paid};${debt};Должник\n`;
@@ -2321,7 +2321,7 @@
                         currentDebt = '—';
                     }
                     const receiptIcon = t.receipt ? `<span class="receipt-icon" onclick="window.viewReceipt('${t.receipt}')"><i class="fas fa-image"></i></span>` : '';
-                    rows += `<tr>
+                    rows += `<table>
                         <td>${formatDate(t.date)}</td>
                         <td>${type}</td>
                         <td class="${t.amount > 0 ? 'income' : 'expense'}">${formatCurrency(t.amount)}</td>
@@ -2374,7 +2374,7 @@
                 URL.revokeObjectURL(link.href);
             });
 
-            // Исправленная функция для архива: экспортирует только должников
+            // ИСПРАВЛЕНА: экспортирует только должников из архива (долг > 0)
             archiveExportDebtorsBtn.addEventListener('click', () => {
                 if (!selectedArchiveId) {
                     alert('Сначала выберите сбор');
@@ -2546,6 +2546,13 @@
                 if (e.target === globalStudentsModal) globalStudentsModal.classList.remove('active');
                 if (e.target === transferModal) transferModal.classList.remove('active');
             });
+
+            // Регистрация Service Worker с абсолютным путем
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/class-fund-tracker1/school/service-worker.js')
+                    .then(reg => console.log('Service Worker зарегистрирован:', reg))
+                    .catch(err => console.error('Ошибка регистрации Service Worker:', err));
+            }
         })();
     </script>
 </body>
