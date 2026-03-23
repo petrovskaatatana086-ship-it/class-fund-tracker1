@@ -803,10 +803,10 @@
                             <th>Долг</th>
                             <th>Чек</th>
                             <th>Действия</th>
-                        </tr>
+                         </tr>
                     </thead>
                     <tbody id="transactionsBody"></tbody>
-                </table>
+                 </table>
             </div>
             <div id="noCollectionSelected" class="empty-list">Выберите сбор для просмотра аналитики</div>
         </div>
@@ -857,10 +857,10 @@
                             <th>Комментарий</th>
                             <th>Долг</th>
                             <th>Чек</th>
-                        </tr>
+                         </tr>
                     </thead>
                     <tbody id="archiveTransactionsBody"></tbody>
-                </table>
+                 </table>
             </div>
             <div id="noArchiveSelected" class="empty-list">Выберите закрытый сбор для просмотра</div>
         </div>
@@ -964,12 +964,12 @@
         <div class="modal" id="globalStudentsModal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>Управление списком класса</h2>
+                    <h2>Управление списком детей</h2>
                     <button class="close-btn" id="closeGlobalStudentsModal">&times;</button>
                 </div>
                 <div id="globalStudentsList" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;"></div>
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                    <input type="text" id="newGlobalStudentName" placeholder="Имя нового ученика">
+                    <input type="text" id="newGlobalStudentName" placeholder="Имя нового ребёнка">
                     <button class="btn-secondary" id="addGlobalStudentBtn">➕ Добавить</button>
                 </div>
                 <button class="btn-primary" id="closeGlobalBtn">Закрыть</button>
@@ -2192,6 +2192,7 @@
                 URL.revokeObjectURL(link.href);
             });
 
+            // ИСПРАВЛЕНА: экспортирует только должников (долг > 0)
             exportDebtorsBtn.addEventListener('click', () => {
                 if (!selectedCollectionId) {
                     alert('Сначала выберите сбор');
@@ -2204,17 +2205,28 @@
                     return;
                 }
 
-                let csv = '\uFEFFИмя;Долг/Переплата;Сдано;Сумма с человека\n';
+                let csv = '\uFEFFИмя;Сумма с человека (₽);Сдано (₽);Долг (₽);Статус\n';
+                let hasDebtors = false;
+                
                 collection.participants.forEach(p => {
                     const paid = getParticipantPaid(collection, p.id);
                     const debt = collection.perPerson - paid;
-                    csv += `${p.name};${debt};${paid};${collection.perPerson}\n`;
+                    // ТОЛЬКО ДОЛЖНИКИ (debt > 0)
+                    if (debt > 0) {
+                        hasDebtors = true;
+                        csv += `${p.name};${collection.perPerson};${paid};${debt};Должник\n`;
+                    }
                 });
+
+                if (!hasDebtors) {
+                    alert('Нет должников! Все дети сдали полностью.');
+                    return;
+                }
 
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
-                link.download = `${collection.name}_debtors.csv`;
+                link.download = `${collection.name}_только_должники.csv`;
                 link.click();
                 URL.revokeObjectURL(link.href);
             });
@@ -2362,6 +2374,7 @@
                 URL.revokeObjectURL(link.href);
             });
 
+            // ИСПРАВЛЕНА: экспортирует только должников из архива (долг > 0)
             archiveExportDebtorsBtn.addEventListener('click', () => {
                 if (!selectedArchiveId) {
                     alert('Сначала выберите сбор');
@@ -2374,17 +2387,28 @@
                     return;
                 }
 
-                let csv = '\uFEFFИмя;Долг/Переплата;Сдано;Сумма с человека\n';
+                let csv = '\uFEFFИмя;Сумма с человека (₽);Сдано (₽);Долг (₽);Статус\n';
+                let hasDebtors = false;
+                
                 collection.participants.forEach(p => {
                     const paid = getParticipantPaid(collection, p.id);
                     const debt = collection.perPerson - paid;
-                    csv += `${p.name};${debt};${paid};${collection.perPerson}\n`;
+                    // ТОЛЬКО ДОЛЖНИКИ (debt > 0)
+                    if (debt > 0) {
+                        hasDebtors = true;
+                        csv += `${p.name};${collection.perPerson};${paid};${debt};Должник\n`;
+                    }
                 });
+
+                if (!hasDebtors) {
+                    alert('Нет должников! Все дети сдали полностью.');
+                    return;
+                }
 
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
-                link.download = `${collection.name}_debtors.csv`;
+                link.download = `${collection.name}_только_должники.csv`;
                 link.click();
                 URL.revokeObjectURL(link.href);
             });
